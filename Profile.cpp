@@ -135,8 +135,9 @@ class MemoryObjectDataPrivate
 {
   friend class MemoryObjectData;
   friend class ProfilePrivate;
-  MemoryObjectDataPrivate(const char* fileName)
+  MemoryObjectDataPrivate(const char* fileName, Size pageOffset)
     : baseAddress_(0)
+    , pageOffset_(pageOffset)
     , fileName_(fileName)
   {}
   ~MemoryObjectDataPrivate();
@@ -149,6 +150,7 @@ class MemoryObjectDataPrivate
   void fixupBranches(const MemoryObjectStorage &objects);
 
   Address baseAddress_;
+  Size pageOffset_;
   EntryStorage entries_;
   SymbolStorage symbols_;
   std::string fileName_;
@@ -281,8 +283,8 @@ const EntryStorage& MemoryObjectData::entries() const { return d->entries_; }
 
 const SymbolStorage& MemoryObjectData::symbols() const { return d->symbols_; }
 
-MemoryObjectData::MemoryObjectData(const char *fileName)
-  : d(new MemoryObjectDataPrivate(fileName))
+MemoryObjectData::MemoryObjectData(const char *fileName, Size pageOffset)
+  : d(new MemoryObjectDataPrivate(fileName, pageOffset))
 {}
 
 MemoryObjectData::~MemoryObjectData() { delete d; }
@@ -324,7 +326,7 @@ void ProfilePrivate::processMmapEvent(const pe::mmap_event &event)
   std::pair<MemoryObjectStorage::const_iterator, bool> insRes =
 #endif
   memoryObjects_.insert(MemoryObject(Range(event.address, event.address + event.length),
-                                    new MemoryObjectData(event.fileName)));
+                                    new MemoryObjectData(event.fileName, event.pageOffset)));
 #ifndef NDEBUG
   if (!insRes.second)
   {
@@ -409,7 +411,7 @@ void ProfilePrivate::resolveAndFixup(Profile::DetailLevel details)
   for (MemoryObjectStorage::iterator objIt = memoryObjects_.begin(); objIt != memoryObjects_.end(); ++objIt)
   {
       AddressResolver r(details, objIt->second->d->fileName_.c_str(), objIt->first.end - objIt->first.start);
-      objIt->second->d->resolveEntries(r, objIt->first.start, details == Profile::Sources? &sourceFiles_ : 0);
+      objIt->second->d->resolveEntries(r, objIt->first.start - objIt->second->d->pageOffset_, details == Profile::Sources? &sourceFiles_ : 0);
   }
   for (MemoryObjectStorage::iterator objIt = memoryObjects_.begin(); objIt != memoryObjects_.end(); ++objIt)
     objIt->second->d->fixupBranches(memoryObjects_);
