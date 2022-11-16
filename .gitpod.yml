@@ -1,0 +1,23 @@
+
+github:
+  prebuilds:
+    master: true
+    branches: true
+    pullRequests: true
+    pullRequestsFromForks: true
+    addCheck: false
+    addComment: false
+    addBadge: true
+
+tasks:
+  - name: Setup & Build
+    before: sudo apt -y install libdw-dev
+    init: make
+  # Does not work on gitpod - /proc/sys is mounted read-only and has no "kernel"
+  #- name: Simple test
+  #  before: make setup-perf-trace
+  #  command: make check
+
+vscode:
+  extensions:
+    - llvm-vs-code-extensions.vscode-clangd
