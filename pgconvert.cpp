@@ -18,18 +18,21 @@ struct Params
     , details(Profile::Sources)
     , dumpInstructions(false)
     , inputFile(0)
+    , outputFile("-")
   {}
   Profile::Mode mode;
   Profile::DetailLevel details;
   bool dumpInstructions;
   const char* inputFile;
+  const char* outputFile;
 };
 
 static void __attribute__((noreturn))
 printUsage()
 {
-  std::cout << "Usage: " << program_invocation_short_name <<
-               " [-m {flat|callgraph}] [-d {object|symbol|source}] [-i] filename.pgdata\n";
+  std::cout << "Usage: " << program_invocation_short_name
+            << " [-m {flat|callgraph}] [-d {object|symbol|source}] [-i] filename.pgdata [filename.grind]"
+            << "\n";
   exit(EXIT_SUCCESS);
 }
 
@@ -72,10 +75,14 @@ static void parseArguments(Params& params, int argc, char* argv[])
     }
   }
 
-  if (optind >= argc)
-    printUsage();
+  if (argc - optind >= 1 && argc - optind <= 2 )
+  {
+    params.inputFile = argv[optind++];
+    if (optind < argc)
+      params.outputFile = argv[optind];
+  }
   else
-    params.inputFile = argv[optind];
+    printUsage();
 
   // It is not possible to use callgraphs with objects only
   if (params.details == Profile::Objects)
@@ -265,6 +272,16 @@ int main(int argc, char** argv)
     std::cerr << "Error reading input file " << params.inputFile << '\n';
     exit(EXIT_FAILURE);
   }
+  std::ostream *out = &std::cout;
+  if (strcmp("-", params.outputFile))
+  {
+    std::ofstream outf (params.outputFile);
+    if (!outf) {
+      std::cerr << "Can't write to the output file " << params.outputFile << '\n';
+      exit(EXIT_FAILURE);
+    }
+    out = &outf;
+  }
 
   Profile profile;
   profile.load(input, params.mode);
@@ -272,7 +289,6 @@ int main(int argc, char** argv)
 
   profile.resolveAndFixup(params.details);
 
-  dump(std::cout, profile, params.dumpInstructions);
-
+  dump(*out, profile, params.dumpInstructions);
   return 0;
 }
